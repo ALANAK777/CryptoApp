@@ -1,15 +1,86 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { useDispatch } from 'react-redux';
 import BTCChartWidget from './BTCChartWidget';
 import RightWidgets from './RightWidgets';
+import CryptoTable from './CryptoTable';
+import { setCryptoList, setLoading, setError } from '../store/cryptoSlice';
+import { sampleCryptoData } from '../sampleCryptoData';
+
+const COINMARKETCAP_API_KEY = 'cde866e0-6ee5-46f6-83ae-4080014f0299';
 
 const Dashboard: React.FC = () => {
+  const dispatch = useDispatch();
+  const [useSample, setUseSample] = useState(false); // Default to live data
+
+  const loadSample = useCallback(() => {
+    dispatch(setCryptoList(sampleCryptoData));
+  }, [dispatch]);
+
+  const loadLive = useCallback(async () => {
+    dispatch(setLoading(true));
+    try {
+      const response = await fetch(
+        'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=10',
+        {
+          headers: {
+            'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
+          },
+        }
+      );
+      const data = await response.json();
+      // Map CoinMarketCap data to your CryptoData structure
+      const mapped = data.data.map((coin: any) => ({
+        id: coin.id.toString(),
+        name: coin.name,
+        symbol: coin.symbol,
+        image: `https://s2.coinmarketcap.com/static/img/coins/64x64/${coin.id}.png`,
+        current_price: coin.quote.USD.price,
+        market_cap: coin.quote.USD.market_cap,
+        total_volume: coin.quote.USD.volume_24h,
+        price_change_percentage_1h_in_currency: coin.quote.USD.percent_change_1h,
+        price_change_percentage_24h: coin.quote.USD.percent_change_24h,
+        price_change_percentage_7d_in_currency: coin.quote.USD.percent_change_7d,
+        circulating_supply: coin.circulating_supply,
+        max_supply: coin.max_supply,
+        sparkline_in_7d: { price: Array(7).fill(coin.quote.USD.price) }, // Placeholder sparkline
+      }));
+      dispatch(setCryptoList(mapped));
+    } catch (err) {
+      dispatch(setError('Failed to fetch crypto data'));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  }, [dispatch]);
+
+  React.useEffect(() => {
+    if (useSample) {
+      loadSample();
+    } else {
+      loadLive();
+    }
+  }, [useSample, loadSample, loadLive]);
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      {/* Toggle Button */}
+      <div className="col-span-full flex justify-end mb-4">
+        <button
+          className={`px-4 py-2 rounded-lg font-semibold mr-2 ${useSample ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}
+          onClick={() => setUseSample(true)}
+        >
+          Sample Data
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-semibold ${!useSample ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}
+          onClick={() => setUseSample(false)}
+        >
+          Live Data
+        </button>
+      </div>
       {/* Main Chart Area */}
       <div className="xl:col-span-2 flex flex-col gap-8">
-        {/* BTC/USD Chart Widget */}
         <BTCChartWidget />
-        {/* Bottom Widgets: Rewards & Transactions */}
+        <CryptoTable />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Rewards Widget */}
           <section className="bg-gray-800 bg-opacity-80 rounded-2xl p-6 shadow-lg">
@@ -45,7 +116,6 @@ const Dashboard: React.FC = () => {
           </section>
         </div>
       </div>
-      {/* Right Side Widgets */}
       <RightWidgets />
     </div>
   );

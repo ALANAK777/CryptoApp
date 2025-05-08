@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
-import { setSelectedCrypto } from '../store/cryptoSlice';
+import { setSelectedCrypto, setCryptoList } from '../store/cryptoSlice';
+import { sampleCryptoData } from '../sampleCryptoData';
 
 const columns = [
   '#', 'Logo', 'Name', 'Price', '1h %', '24h %', '7d %', 'Market Cap', '24h Volume', 'Circulating Supply', 'Max Supply', '7D Chart'
@@ -10,6 +11,12 @@ const columns = [
 const CryptoTable: React.FC = () => {
   const dispatch = useDispatch();
   const cryptoList = useSelector((state: RootState) => state.crypto.cryptoList);
+
+  useEffect(() => {
+    if (cryptoList.length === 0) {
+      dispatch(setCryptoList(sampleCryptoData));
+    }
+  }, [cryptoList.length, dispatch]);
 
   return (
     <section className="bg-gray-800 bg-opacity-80 rounded-2xl p-6 shadow-lg mt-8">
